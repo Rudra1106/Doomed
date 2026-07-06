@@ -42,7 +42,7 @@ int main() {
     int playerX = 320;
     int playerY = 240;
 
-    const int playerSize = 8;
+    const int playerSize = 6; // size of the player rectangle
 // Notice these are outside the loop. Why? Because the player's position should persist between frames.
 // If we wrote : while (running) { int playerX = 320; }
 //  then every frame SDL would do : Frame 1 playerX = 320 -> Move right -> 321 -> Next frame -> playerX = 320
@@ -56,6 +56,16 @@ int main() {
         while (SDL_PollEvent(&event)) { // SDL_PollEvent(&event) this means that we are passing the address of the event variable to the SDL_PollEvent function.
 // The & operator is used to get the memory address of the event variable, which allows SDL_PollEvent to fill in the details of the event that occurred - 
 // (like a key press or mouse movement) into that variable. This way, we can check what kind of event happened and respond accordingly. 
+            // --- handle continuous key state (for movement) ---
+        const Uint8* keystate = SDL_GetKeyboardState(NULL); // const Uint8* keystate means that we are declaring a pointer to an array of unsigned 8-bit integers (Uint8) that represents the current state of the keyboard. 
+        // SDL_GetKeyboardState returns a pointer to an internal array SDL manages.
+        // NULL here just means "I don't need the array length back."
+
+        if (keystate[SDL_SCANCODE_UP])    playerY -= 3;
+        if (keystate[SDL_SCANCODE_DOWN])  playerY += 3;
+        if (keystate[SDL_SCANCODE_LEFT])  playerX -= 3;
+        if (keystate[SDL_SCANCODE_RIGHT]) playerX += 3;
+
             if (event.type == SDL_QUIT) {
                 running = false;
             }
@@ -92,6 +102,11 @@ int main() {
             SDL_RenderFillRect(renderer, &walls[i]);
         }
     // this for loop iterates through each rectangle in the walls array and calls SDL_RenderFillRect to fill each rectangle with the current draw color (white in this case). The &walls[i] syntax is used to pass the address of the current rectangle to the function, as SDL_RenderFillRect expects a pointer to an SDL_Rect structure.
+
+        // draw player as a small red square
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+        SDL_Rect playerRect = { playerX, playerY, playerSize, playerSize };
+        SDL_RenderFillRect(renderer, &playerRect);
 
         SDL_RenderPresent(renderer);
         //  overall working sudo code is : first we set the draw color to dark blue-ish, then we clear the screen with that color, then we change the draw color to white, then we draw a rectangle in the middle of the screen, and finally we push what we drew onto the actual visible window.
