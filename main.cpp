@@ -38,11 +38,24 @@ int main() {
         return 1;
     }
 
+    // now lets add a player rectangle :
+    int playerX = 320;
+    int playerY = 240;
+
+    const int playerSize = 8;
+// Notice these are outside the loop. Why? Because the player's position should persist between frames.
+// If we wrote : while (running) { int playerX = 320; }
+//  then every frame SDL would do : Frame 1 playerX = 320 -> Move right -> 321 -> Next frame -> playerX = 320
+// You'd never move. Game state almost always lives outside the render loop.
+
     // 4. Keep it open until the user closes it
     bool running = true;
     SDL_Event event;
     while (running) {
-        while (SDL_PollEvent(&event)) {
+// SDL_PollEvent tells you about discrete moments — "a key was just pressed," "the window was just closed," "the mouse just clicked." One-time occurrences. Good for things like quitting, or "press Enter to confirm."
+        while (SDL_PollEvent(&event)) { // SDL_PollEvent(&event) this means that we are passing the address of the event variable to the SDL_PollEvent function.
+// The & operator is used to get the memory address of the event variable, which allows SDL_PollEvent to fill in the details of the event that occurred - 
+// (like a key press or mouse movement) into that variable. This way, we can check what kind of event happened and respond accordingly. 
             if (event.type == SDL_QUIT) {
                 running = false;
             }
@@ -64,10 +77,13 @@ int main() {
         // SDL_RenderFillRect(renderer, &rect); // This will fill the rectangle with the current draw color (dark blue-ish in this case). Make sure to call this function before SDL_RenderPresent 
         //  Push what we drew onto the actual visible window
 
+// this creates an array of SDL_Rect structures, each representing a wall in the game. Each SDL_Rect structure has four members: x, y, width, and height, 
+// which define the position and size of the rectangle. The walls are defined with specific coordinates and dimensions to create a simple layout for the game environment.
         SDL_Rect walls[] = {
-            { 270, 200, 100, 100 }, // x, y, width, height
-            { 150, 150, 50, 200 },
-            { 400, 100, 80, 300 }
+            { 100, 100, 40, 200 }, // x, y, width, height
+            { 300, 150, 200, 40 },
+            { 500, 100, 40, 300 },
+            { 200, 350, 300, 40 }
         };
 
         int numWalls = sizeof(walls) / sizeof(walls[0]); // instead of int numWalls = 3; we write this because it is more flexible and allows us to easily change the number of walls in the future without having to manually update the numWalls variable.
