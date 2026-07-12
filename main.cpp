@@ -1,20 +1,35 @@
 #include <SDL2/SDL.h>
 #include <iostream>
 
-int main() {
+// now lets build the collision detection system with AABB collision detection algorithm :
+// how this works is that we check if the two rectangles are overlapping by checking if the edges of one rectangle are outside the edges of the other rectangle. If they are not outside, then they must be overlapping.
+// a.x + a.w > b.x means that the right edge of rectangle a is to the right of the left edge of rectangle b.
+bool checkCollision(SDL_Rect a, SDL_Rect b)
+{
+// left   = x --> right  = x + w
+// top    = y --> bottom = y + h
+    return (a.x < b.x + b.w) && // this means that the left edge of rectangle a is to the left of the right edge of rectangle b.
+           (a.x + a.w > b.x) && // this means that the right edge of rectangle a is to the right of the left edge of rectangle b.
+           (a.y < b.y + b.h) && // this means that the top edge of rectangle a is above the bottom edge of rectangle b.
+           (a.y + a.h > b.y);   // this means that the bottom edge of rectangle a is below the top edge of rectangle b.
+}
+
+int main()
+{
     // 1. Start up SDL
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO) != 0)
+    {
         std::cout << "SDL_Init failed: " << SDL_GetError() << std::endl;
         return 1;
     }
 
-// 2. Create a window 
-//  SDL_Window* window means that we are declaring a pointer to an SDL_Window structure. This structure represents a window in SDL. 
-//  The SDL_CreateWindow function is called to create a new window with the specified parameters, and it returns a pointer to the newly created window. If the window creation fails, SDL_CreateWindow will return nullptr, and we handle that case by printing an error message and returning from the program.
-// !why are we declaring a pointer to an SDL_Window structure ? 
-// because we need to manage the window's properties and behavior, such as its size, position, and title. By using a pointer, we can easily pass the window around to different functions and manage its lifecycle (creation and destruction) without copying the entire structure. 
-// This is more efficient and allows for better control over the window's state throughout the program.
-    SDL_Window* window = SDL_CreateWindow(
+    // 2. Create a window
+    //  SDL_Window* window means that we are declaring a pointer to an SDL_Window structure. This structure represents a window in SDL.
+    //  The SDL_CreateWindow function is called to create a new window with the specified parameters, and it returns a pointer to the newly created window. If the window creation fails, SDL_CreateWindow will return nullptr, and we handle that case by printing an error message and returning from the program.
+    // !why are we declaring a pointer to an SDL_Window structure ?
+    // because we need to manage the window's properties and behavior, such as its size, position, and title. By using a pointer, we can easily pass the window around to different functions and manage its lifecycle (creation and destruction) without copying the entire structure.
+    // This is more efficient and allows for better control over the window's state throughout the program.
+    SDL_Window *window = SDL_CreateWindow(
         "My DOOM",              // title
         SDL_WINDOWPOS_CENTERED, // x position
         SDL_WINDOWPOS_CENTERED, // y position
@@ -22,18 +37,20 @@ int main() {
         0                       // flags
     );
 
-    if (!window) {
+    if (!window)
+    {
         std::cout << "Window creation failed: " << SDL_GetError() << std::endl;
         return 1;
     }
 
-// 3. Create a renderer (this is what actually draws pixels)
-// SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0) means that we are declaring a pointer to an SDL_Renderer structure. This structure represents a rendering context in SDL,
-// which is responsible for drawing graphics to the window. The SDL_CreateRenderer function is called to create a new renderer associated with the specified window. The parameters passed to SDL_CreateRenderer are as follows: 
-// SDL_Renderer structure is a inbuilt structure in SDL that provides an interface for rendering graphics. It allows you to draw shapes, textures, and other graphical elements onto the window. 
-// The renderer is responsible for managing the rendering pipeline and handling the actual drawing operations.
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
-    if (!renderer) {
+    // 3. Create a renderer (this is what actually draws pixels)
+    // SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0) means that we are declaring a pointer to an SDL_Renderer structure. This structure represents a rendering context in SDL,
+    // which is responsible for drawing graphics to the window. The SDL_CreateRenderer function is called to create a new renderer associated with the specified window. The parameters passed to SDL_CreateRenderer are as follows:
+    // SDL_Renderer structure is a inbuilt structure in SDL that provides an interface for rendering graphics. It allows you to draw shapes, textures, and other graphical elements onto the window.
+    // The renderer is responsible for managing the rendering pipeline and handling the actual drawing operations.
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
+    if (!renderer)
+    {
         std::cout << "Renderer creation failed: " << SDL_GetError() << std::endl;
         return 1;
     }
@@ -43,30 +60,78 @@ int main() {
     int playerY = 240;
 
     const int playerSize = 6; // size of the player rectangle
-// Notice these are outside the loop. Why? Because the player's position should persist between frames.
-// If we wrote : while (running) { int playerX = 320; }
-//  then every frame SDL would do : Frame 1 playerX = 320 -> Move right -> 321 -> Next frame -> playerX = 320
-// You'd never move. Game state almost always lives outside the render loop.
+    // Notice these are outside the loop. Why? Because the player's position should persist between frames.
+    // If we wrote : while (running) { int playerX = 320; }
+    //  then every frame SDL would do : Frame 1 playerX = 320 -> Move right -> 321 -> Next frame -> playerX = 320
+    // You'd never move. Game state almost always lives outside the render loop.
+
+    // this creates an array of SDL_Rect structures, each representing a wall in the game. Each SDL_Rect structure has four members: x, y, width, and height,
+    // which define the position and size of the rectangle. The walls are defined with specific coordinates and dimensions to create a simple layout for the game environment.
+    SDL_Rect walls[] = {
+        {100, 100, 40, 200}, // x, y, width, height
+        {300, 150, 200, 40},
+        {500, 100, 40, 300},
+        {200, 350, 300, 40}};
+
+    int numWalls = sizeof(walls) / sizeof(walls[0]); // instead of int numWalls = 3; we write this because it is more flexible and allows us to easily change the number of walls in the future without having to manually update the numWalls variable.
+    //  this means that we are calculating the number of elements in the walls array by dividing the total size of the array (in bytes) by the size of a single element (in bytes). This gives us the number of rectangles (walls) we have defined in the walls array.
 
     // 4. Keep it open until the user closes it
     bool running = true;
     SDL_Event event;
-    while (running) {
-// SDL_PollEvent tells you about discrete moments — "a key was just pressed," "the window was just closed," "the mouse just clicked." One-time occurrences. Good for things like quitting, or "press Enter to confirm."
-        while (SDL_PollEvent(&event)) { // SDL_PollEvent(&event) this means that we are passing the address of the event variable to the SDL_PollEvent function.
-// The & operator is used to get the memory address of the event variable, which allows SDL_PollEvent to fill in the details of the event that occurred - 
-// (like a key press or mouse movement) into that variable. This way, we can check what kind of event happened and respond accordingly. 
+    while (running)
+    {
+        // SDL_PollEvent tells you about discrete moments — "a key was just pressed," "the window was just closed," "the mouse just clicked." One-time occurrences. Good for things like quitting, or "press Enter to confirm."
+        while (SDL_PollEvent(&event))
+        {   // SDL_PollEvent(&event) this means that we are passing the address of the event variable to the SDL_PollEvent function.
+            // The & operator is used to get the memory address of the event variable, which allows SDL_PollEvent to fill in the details of the event that occurred -
+            // (like a key press or mouse movement) into that variable. This way, we can check what kind of event happened and respond accordingly.
             // --- handle continuous key state (for movement) ---
-        const Uint8* keystate = SDL_GetKeyboardState(NULL); // const Uint8* keystate means that we are declaring a pointer to an array of unsigned 8-bit integers (Uint8) that represents the current state of the keyboard. 
-        // SDL_GetKeyboardState returns a pointer to an internal array SDL manages.
-        // NULL here just means "I don't need the array length back."
+            const Uint8 *keystate = SDL_GetKeyboardState(NULL); // const Uint8* keystate means that we are declaring a pointer to an array of unsigned 8-bit integers (Uint8) that represents the current state of the keyboard.
+            // SDL_GetKeyboardState returns a pointer to an internal array SDL manages. NULL here just means "I don't need the array length back."
+            int newX = playerX;
+            int newY = playerY;
 
-        if (keystate[SDL_SCANCODE_UP])    playerY -= 3;
-        if (keystate[SDL_SCANCODE_DOWN])  playerY += 3;
-        if (keystate[SDL_SCANCODE_LEFT])  playerX -= 3;
-        if (keystate[SDL_SCANCODE_RIGHT]) playerX += 3;
+            if (keystate[SDL_SCANCODE_UP])
+                newY -= 3;
+            if (keystate[SDL_SCANCODE_DOWN])
+                newY += 3;
+            if (keystate[SDL_SCANCODE_LEFT])
+                newX -= 3;
+            if (keystate[SDL_SCANCODE_RIGHT])
+                newX += 3;
+            // instead of sliding along the wall (like in basically every game you've played), your player just stops dead,even though one of the two directions was still completely open. That feels wrong — you'd expect to slide along the wall's edge, not freeze.
 
-            if (event.type == SDL_QUIT) {
+            // check X movement alone
+            SDL_Rect tryX = {newX, playerY, playerSize, playerSize};
+            bool blockedX = false;
+            for (int i = 0; i < numWalls; ++i)
+            {
+                if (checkCollision(tryX, walls[i]))
+                {
+                    blockedX = true;
+                    break;
+                }
+            }
+            if (!blockedX)
+                playerX = newX;
+
+            // check Y movement alone
+            SDL_Rect tryY = {playerX, newY, playerSize, playerSize};
+            bool blockedY = false;
+            for (int i = 0; i < numWalls; ++i)
+            {
+                if (checkCollision(tryY, walls[i]))
+                {
+                    blockedY = true;
+                    break;
+                }
+            }
+            if (!blockedY)
+                playerY = newY;
+
+            if (event.type == SDL_QUIT)
+            {
                 running = false;
             }
         }
@@ -82,30 +147,20 @@ int main() {
         // now lets draw a rectangle in the middle of the screen :
         // SDL_Rect rect = { 270, 200, 100, 100 }; // x, y, width, height
         // i dont see any rectangle drawn on the screen, why is that ?
-        // The reason you don't see the rectangle is that you haven't actually drawn it yet. You need to call SDL_RenderFillRect to fill the rectangle with the current draw color. 
+        // The reason you don't see the rectangle is that you haven't actually drawn it yet. You need to call SDL_RenderFillRect to fill the rectangle with the current draw color.
 
-        // SDL_RenderFillRect(renderer, &rect); // This will fill the rectangle with the current draw color (dark blue-ish in this case). Make sure to call this function before SDL_RenderPresent 
+        // SDL_RenderFillRect(renderer, &rect); // This will fill the rectangle with the current draw color (dark blue-ish in this case). Make sure to call this function before SDL_RenderPresent
         //  Push what we drew onto the actual visible window
 
-// this creates an array of SDL_Rect structures, each representing a wall in the game. Each SDL_Rect structure has four members: x, y, width, and height, 
-// which define the position and size of the rectangle. The walls are defined with specific coordinates and dimensions to create a simple layout for the game environment.
-        SDL_Rect walls[] = {
-            { 100, 100, 40, 200 }, // x, y, width, height
-            { 300, 150, 200, 40 },
-            { 500, 100, 40, 300 },
-            { 200, 350, 300, 40 }
-        };
-
-        int numWalls = sizeof(walls) / sizeof(walls[0]); // instead of int numWalls = 3; we write this because it is more flexible and allows us to easily change the number of walls in the future without having to manually update the numWalls variable.
-    //  this means that we are calculating the number of elements in the walls array by dividing the total size of the array (in bytes) by the size of a single element (in bytes). This gives us the number of rectangles (walls) we have defined in the walls array.
-        for (int i = 0; i < numWalls; ++i) {
+        for (int i = 0; i < numWalls; ++i)
+        {
             SDL_RenderFillRect(renderer, &walls[i]);
         }
-    // this for loop iterates through each rectangle in the walls array and calls SDL_RenderFillRect to fill each rectangle with the current draw color (white in this case). The &walls[i] syntax is used to pass the address of the current rectangle to the function, as SDL_RenderFillRect expects a pointer to an SDL_Rect structure.
+        // this for loop iterates through each rectangle in the walls array and calls SDL_RenderFillRect to fill each rectangle with the current draw color (white in this case). The &walls[i] syntax is used to pass the address of the current rectangle to the function, as SDL_RenderFillRect expects a pointer to an SDL_Rect structure.
 
         // draw player as a small red square
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-        SDL_Rect playerRect = { playerX, playerY, playerSize, playerSize };
+        SDL_Rect playerRect = {playerX, playerY, playerSize, playerSize};
         SDL_RenderFillRect(renderer, &playerRect);
 
         SDL_RenderPresent(renderer);
@@ -116,5 +171,4 @@ int main() {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-
 }
